@@ -1,0 +1,74 @@
+package ui
+
+import (
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textarea"
+)
+
+type keyMap struct {
+	Save       key.Binding
+	ToggleRead key.Binding
+	Split      key.Binding
+	Quit       key.Binding
+	Help       key.Binding
+	Copy       key.Binding
+	Cut        key.Binding
+	Paste      key.Binding
+	SelectAll  key.Binding
+	Indent     key.Binding
+	Scroll     key.Binding
+}
+
+// cmd binds Cmd+k (reported as "super+k" by terminals that speak the kitty
+// keyboard protocol, e.g. Ghostty, kitty, WezTerm) and Ctrl+k as a fallback
+// for terminals that keep Cmd shortcuts for themselves (Terminal.app, iTerm2
+// by default). Help always shows the Cmd form.
+func cmd(k, desc string, extra ...string) key.Binding {
+	keys := append([]string{"super+" + k, "ctrl+" + k}, extra...)
+	return key.NewBinding(key.WithKeys(keys...), key.WithHelp("cmd+"+k, desc))
+}
+
+func defaultKeys() keyMap {
+	return keyMap{
+		Save:       cmd("s", "save"),
+		ToggleRead: cmd("e", "edit/read"),
+		Split:      cmd("\\", "split view"),
+		Quit:       cmd("q", "quit"),
+		Help:       cmd("g", "help", "f1"),
+		Copy:       cmd("c", "copy"),
+		Cut:        cmd("x", "cut"),
+		Paste:      cmd("v", "paste"),
+		SelectAll:  cmd("a", "select all"),
+		Indent:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "indent")),
+		Scroll:     key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/pgdn", "scroll")),
+	}
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Save, k.ToggleRead, k.Split, k.Help, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Save, k.Quit, k.Help},
+		{k.ToggleRead, k.Split, k.Scroll},
+		{k.Copy, k.Cut, k.Paste, k.SelectAll},
+		{k.Indent},
+	}
+}
+
+// editorKeys adapts the textarea's emacs-ish defaults to standard editor
+// conventions: cmd/ctrl+a selects all, cmd/ctrl+e is ours (read mode), and cmd/ctrl+g is
+// help.
+func editorKeys() textarea.KeyMap {
+	km := textarea.DefaultKeyMap()
+	// macOS-style navigation: cmd+←/→ line start/end, cmd+↑/↓ doc start/end.
+	km.LineStart = key.NewBinding(key.WithKeys("home", "super+left"))
+	km.LineEnd = key.NewBinding(key.WithKeys("end", "super+right"))
+	km.InputBegin = key.NewBinding(key.WithKeys("ctrl+home", "super+up", "alt+<"))
+	km.InputEnd = key.NewBinding(key.WithKeys("ctrl+end", "super+down", "alt+>"))
+	km.SelectAll = key.NewBinding(key.WithKeys("super+a", "ctrl+a"))
+	km.Paste = key.NewBinding(key.WithKeys("super+v", "ctrl+v"))
+	km.CopySelection = key.NewBinding(key.WithKeys("ctrl+shift+c"))
+	return km
+}
