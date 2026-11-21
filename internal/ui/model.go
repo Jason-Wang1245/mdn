@@ -2,7 +2,9 @@
 package ui
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +20,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"mdn/internal/copilot"
 	"mdn/internal/doc"
 )
 
@@ -43,8 +46,21 @@ const (
 
 type clearStatusMsg struct{ seq int }
 
+// Options configures optional editor features.
+type Options struct {
+	// StartCopilot launches the GitHub Copilot language server. Nil
+	// disables Copilot suggestions.
+	StartCopilot func(ctx context.Context, opts copilot.Options) (*copilot.Client, error)
+	// Send delivers a message to the running program (tea.Program.Send);
+	// required with StartCopilot.
+	Send func(tea.Msg)
+	// Logger receives Copilot diagnostics; nil discards them.
+	Logger *log.Logger
+}
+
 // Model is the root Bubble Tea model.
 type Model struct {
+	opts    Options
 	doc     *doc.Doc
 	editor  textarea.Model
 	preview viewport.Model
@@ -72,11 +88,12 @@ type Model struct {
 	renderedDark bool
 
 	slash slashMenu
+	cp    copilotState
 	now   func() time.Time
 }
 
 // New creates the editor for path ("" for an untitled buffer).
-func New(path string) (Model, error) {
+func New(path string, opts Options) (Model, error) {
 	d, content, err := doc.Load(path)
 	if err != nil {
 		return Model{}, err
@@ -92,6 +109,9 @@ func New(path string) (Model, error) {
 	ed.MaxHeight = 999
 	ed.MaxWidth = 0
 	ed.Placeholder = "Start writing…"
+	// Use the terminal's cursor so it sits in front of Copilot ghost text
+	// instead of covering it.
+	ed.SetVirtualCursor(false)
 	ed.SetValue(content)
 	ed.MoveToBegin()
 	ed.Focus()
@@ -101,6 +121,7 @@ func New(path string) (Model, error) {
 	in.Placeholder = "note.md"
 
 	m := Model{
+		opts:    opts,
 		doc:     d,
 		editor:  ed,
 		preview: viewport.New(),
@@ -115,7 +136,7 @@ func New(path string) (Model, error) {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.RequestBackgroundColor
+	return tea.Batch(tea.RequestBackgroundColor, m.startCopilot())
 }
 
 func (m *Model) applyTheme() {
@@ -191,6 +212,8 @@ func (m *Model) setMode(md mode) {
 	}
 	if md == modeRead {
 		m.slash = slashMenu{}
+		m.clearGhosts()
+		m.cancelCompletion()
 	}
 	m.mode = md
 	m.resize()
@@ -211,6 +234,9 @@ func (m *Model) setStatus(s string, isErr bool) tea.Cmd {
 // ---------------------------------------------------------------- update
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if nm, cmd, ok := m.updateCopilot(msg); ok {
+		return nm, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -259,8 +285,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// focused components.
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
+	before := m.editor.Value()
 	m.editor, cmd = m.editor.Update(msg)
 	cmds = append(cmds, cmd)
+	if m.editor.Value() != before { // e.g. a clipboard paste arriving
+		cmds = append(cmds, m.contentChanged())
+	}
 	if m.prompt == promptSaveAs {
 		m.input, cmd = m.input.Update(msg)
 		cmds = append(cmds, cmd)
@@ -269,6 +299,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleWheel(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
+	m.clearGhosts()
+	m.cancelCompletion()
 	edW, _ := m.paneWidths()
 	toPreview := m.mode == modeRead || (m.mode == modeSplit && msg.X > edW)
 	if toPreview {
@@ -308,6 +340,13 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if m.cp.signIn != nil {
+		if key.Matches(msg, m.keys.Quit) {
+			return m, tea.Quit
+		}
+		return m.handleSignInKey(msg)
+	}
+
 	if m.showHelp {
 		// Any key dismisses help; quit still works.
 		m.showHelp = false
@@ -329,6 +368,8 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, m.keys.Help):
 		m.showHelp = true
 		return m, nil
+	case key.Matches(msg, m.keys.SignIn):
+		return m, m.startSignIn()
 	case key.Matches(msg, m.keys.ToggleRead):
 		next := modeRead
 		if m.mode == modeRead {
@@ -374,7 +415,29 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if g, ok := m.ghost(); ok {
+		switch {
+		case key.Matches(msg, m.keys.Accept):
+			return m, m.acceptGhost(g)
+		case key.Matches(msg, m.keys.AcceptWord):
+			return m, m.acceptWord(g)
+		case key.Matches(msg, m.keys.Dismiss):
+			m.clearGhosts()
+			return m, nil
+		case key.Matches(msg, m.keys.NextSuggestion):
+			m.cycleGhost(1)
+			return m, nil
+		case key.Matches(msg, m.keys.PrevSuggestion):
+			m.cycleGhost(-1)
+			return m, nil
+		}
+	}
+
 	switch {
+	case key.Matches(msg, m.keys.Suggest):
+		m.slash = slashMenu{}
+		m.clearGhosts()
+		return m, m.requestCompletion(true)
 	case key.Matches(msg, m.keys.Copy):
 		if m.editor.HasSelection() {
 			return m, m.editor.CopySelection()
@@ -406,11 +469,20 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // updateEditor forwards msg to the textarea and reacts to content changes.
 func (m Model) updateEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
 	before := m.editor.Value()
+	row, col := m.editor.Line(), m.editor.Column()
 	var cmd tea.Cmd
 	m.editor, cmd = m.editor.Update(msg)
 	m.syncSlash(msg)
 	if m.editor.Value() != before {
+		if m.advanceGhost(before, row, col) {
+			return m, tea.Batch(cmd, m.previewChanged())
+		}
 		return m, tea.Batch(cmd, m.contentChanged())
+	}
+	if m.editor.Line() != row || m.editor.Column() != col {
+		// Moving the cursor invalidates suggestions.
+		m.clearGhosts()
+		m.cancelCompletion()
 	}
 	if m.mode == modeSplit {
 		m.syncScroll()
@@ -505,8 +577,17 @@ func (m *Model) setValueAt(value string, row, col int) {
 	m.editor.SetCursorColumn(col)
 }
 
-// contentChanged schedules a debounced preview render in split mode.
+// contentChanged reacts to a buffer edit: it drops stale Copilot
+// suggestions, syncs the document, and schedules a new suggestion and a
+// preview render.
 func (m *Model) contentChanged() tea.Cmd {
+	m.clearGhosts()
+	m.syncCopilot()
+	return tea.Batch(m.previewChanged(), m.scheduleCompletion())
+}
+
+// previewChanged schedules a debounced preview render in split mode.
+func (m *Model) previewChanged() tea.Cmd {
 	if m.mode != modeSplit {
 		return nil
 	}
@@ -576,6 +657,7 @@ func (m Model) save() (tea.Model, tea.Cmd) {
 		m.quitAfterSave = false
 		return m, m.setStatus("Save failed: "+err.Error(), true)
 	}
+	m.reopenIfMoved()
 	if m.quitAfterSave {
 		return m, tea.Quit
 	}
@@ -629,24 +711,29 @@ func (m Model) View() tea.View {
 	}
 
 	var body string
+	editorView := m.spliceGhost(m.editor.View())
 	switch {
+	case m.cp.signIn != nil:
+		body = lipgloss.Place(m.width, m.bodyHeight(), lipgloss.Center, lipgloss.Center, m.signInView())
 	case m.showHelp:
 		box := m.st.helpBox.Render(
 			lipgloss.NewStyle().Bold(true).Render("mdn — keyboard shortcuts") + "\n\n" +
 				m.help.FullHelpView(m.keys.FullHelp()) + "\n\n" +
 				m.help.Styles.FullKey.Render("/") + " " +
 				m.help.Styles.FullDesc.Render("type / for commands (/h2, /todo, /code, /table…)") + "\n\n" +
+				lipgloss.NewStyle().Bold(true).Render("GitHub Copilot") + "\n\n" +
+				m.help.FullHelpView(m.keys.CopilotHelp()) + "\n\n" +
 				m.help.Styles.ShortDesc.Render("press any key to close"))
 		body = lipgloss.Place(m.width, m.bodyHeight(), lipgloss.Center, lipgloss.Center, box)
 	case m.mode == modeEdit:
-		body = m.editor.View()
+		body = editorView
 	case m.mode == modeRead:
 		body = m.preview.View()
 	default:
 		edW, pvW := m.paneWidths()
 		h := m.bodyHeight()
 		div := m.st.divider.Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
-		left := lipgloss.NewStyle().Width(edW).Height(h).MaxHeight(h).Render(m.editor.View())
+		left := lipgloss.NewStyle().Width(edW).Height(h).MaxHeight(h).Render(editorView)
 		right := lipgloss.NewStyle().Width(pvW).Height(h).MaxHeight(h).Render(m.preview.View())
 		body = lipgloss.JoinHorizontal(lipgloss.Top, left, div, right)
 	}
@@ -658,15 +745,18 @@ func (m Model) View() tea.View {
 	}
 	// Components have minimum sizes; never draw past the window.
 	v.Content = lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(m.height).Render(content)
+	if c := m.editor.Cursor(); c != nil && m.mode != modeRead && !m.showHelp &&
+		m.cp.signIn == nil && m.prompt != promptSaveAs {
+		c.Y++ // below the title bar
+		v.Cursor = c
+	}
 	return v
 }
 
 // overlayMenu draws the slash menu just below the "/" (or above it when
 // there's no room), clamped to the editor pane.
 func (m Model) overlayMenu(content string) string {
-	ed := m.editor
-	ed.SetVirtualCursor(false)
-	cur := ed.Cursor()
+	cur := m.editor.Cursor()
 	if cur == nil {
 		return content
 	}
@@ -728,6 +818,7 @@ func (m Model) statusBar() string {
 		return m.fill(m.st.status.Render("/"+m.slash.query),
 			m.st.hint.Render("↑↓ select · enter apply · esc close"))
 	}
+	hint = m.copilotIndicator() + hint
 	if m.status != "" {
 		st := m.st.statusMsg
 		if m.statusErr {

@@ -17,6 +17,15 @@ type keyMap struct {
 	SelectAll  key.Binding
 	Indent     key.Binding
 	Scroll     key.Binding
+
+	// Copilot
+	Accept         key.Binding
+	AcceptWord     key.Binding
+	NextSuggestion key.Binding
+	PrevSuggestion key.Binding
+	Suggest        key.Binding
+	Dismiss        key.Binding
+	SignIn         key.Binding
 }
 
 // cmd binds Cmd+k (reported as "super+k" by terminals that speak the kitty
@@ -41,6 +50,14 @@ func defaultKeys() keyMap {
 		SelectAll:  cmd("a", "select all"),
 		Indent:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "indent")),
 		Scroll:     key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/pgdn", "scroll")),
+
+		Accept:         key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "accept suggestion")),
+		AcceptWord:     key.NewBinding(key.WithKeys("ctrl+right", "alt+right"), key.WithHelp("ctrl+→", "accept word")),
+		NextSuggestion: key.NewBinding(key.WithKeys("alt+]"), key.WithHelp("alt+] / alt+[", "cycle suggestions")),
+		PrevSuggestion: key.NewBinding(key.WithKeys("alt+[")),
+		Suggest:        key.NewBinding(key.WithKeys("ctrl+space", "ctrl+@"), key.WithHelp("ctrl+space", "suggest now")),
+		Dismiss:        key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss suggestion")),
+		SignIn:         cmd("l", "copilot sign-in"),
 	}
 }
 
@@ -54,6 +71,14 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.ToggleRead, k.Split, k.Scroll},
 		{k.Copy, k.Cut, k.Paste, k.SelectAll},
 		{k.Indent},
+	}
+}
+
+// CopilotHelp lists the Copilot suggestion keys.
+func (k keyMap) CopilotHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Accept, k.AcceptWord, k.Dismiss},
+		{k.NextSuggestion, k.Suggest, k.SignIn},
 	}
 }
 

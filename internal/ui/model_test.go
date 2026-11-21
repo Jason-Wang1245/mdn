@@ -19,7 +19,7 @@ func newTestModel(t *testing.T, content string) (Model, string) {
 			t.Fatal(err)
 		}
 	}
-	m, err := New(p)
+	m, err := New(p, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestSaveAndDirtyAndQuitGuard(t *testing.T) {
 }
 
 func TestUntitledSaveAs(t *testing.T) {
-	m, err := New("")
+	m, err := New("", Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

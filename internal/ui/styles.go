@@ -18,6 +18,12 @@ type styles struct {
 	divider   lipgloss.Style
 	helpBox   lipgloss.Style
 
+	ghost lipgloss.Style // Copilot suggestion text
+	cpOK  lipgloss.Style
+	cpBad lipgloss.Style
+	code  lipgloss.Style // sign-in one-time code
+	link  lipgloss.Style
+
 	menuBox      lipgloss.Style
 	menuItem     lipgloss.Style
 	menuMuted    lipgloss.Style
@@ -54,6 +60,13 @@ func newStyles(dark bool) styles {
 		divider:   lipgloss.NewStyle().Foreground(muted),
 		helpBox: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).
 			BorderForeground(accent).Padding(1, 2),
+
+		ghost: lipgloss.NewStyle().Foreground(muted).Italic(true),
+		cpOK:  bar.Foreground(lipgloss.Color("#2E9E6B")).Padding(0, 1),
+		cpBad: bar.Foreground(lipgloss.Color("#E5484D")).Padding(0, 1),
+		code: lipgloss.NewStyle().Bold(true).Padding(0, 1).
+			Foreground(lipgloss.Color("#FFFFFF")).Background(accent),
+		link: lipgloss.NewStyle().Underline(true),
 
 		menuBox: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).
 			BorderForeground(accent).BorderBackground(menuBG).Background(menuBG),
