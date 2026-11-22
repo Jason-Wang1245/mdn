@@ -48,10 +48,23 @@ GOOS=linux GOARCH=amd64 go build -o mdn-linux .   # or GOARCH=arm64
 ## Usage
 
 ```sh
-mdn notes.md        # open (or create on first save) notes.md
-mdn                 # start an untitled buffer; you'll be asked for a name on save
+mdn todo.md         # edit todo.md (created on first save)
+mdn                 # edit mdn's global notes file
 mdn --no-copilot    # run without Copilot
 ```
+
+mdn edits one file at a time. When you don't name a file, it uses a single
+global notes file that it keeps for you, at `notes.md` inside `mdn` in your
+user config directory:
+
+| OS | Global file |
+| --- | --- |
+| macOS | `~/Library/Application Support/mdn/notes.md` |
+| Linux | `$XDG_CONFIG_HOME/mdn/notes.md` (default `~/.config/mdn/notes.md`) |
+| Windows | `%AppData%\mdn\notes.md` |
+
+Set `$MDN_FILE` to use a different global file. Missing directories are
+created on first save.
 
 ### Flags
 

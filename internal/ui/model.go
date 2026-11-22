@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -15,7 +14,6 @@ import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
-	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -40,7 +38,6 @@ type promptKind int
 
 const (
 	promptNone promptKind = iota
-	promptSaveAs
 	promptConfirmQuit
 )
 
@@ -65,7 +62,6 @@ type Model struct {
 	editor  textarea.Model
 	preview viewport.Model
 	help    help.Model
-	input   textinput.Model
 	keys    keyMap
 	st      styles
 	rend    renderer
@@ -93,7 +89,7 @@ type Model struct {
 	now   func() time.Time
 }
 
-// New creates the editor for path ("" for an untitled buffer).
+// New creates the editor for the document at path.
 func New(path string, opts Options) (Model, error) {
 	d, content, err := doc.Load(path)
 	if err != nil {
@@ -117,17 +113,12 @@ func New(path string, opts Options) (Model, error) {
 	ed.MoveToBegin()
 	ed.Focus()
 
-	in := textinput.New()
-	in.Prompt = "Save as: "
-	in.Placeholder = "note.md"
-
 	m := Model{
 		opts:    opts,
 		doc:     d,
 		editor:  ed,
 		preview: viewport.New(),
 		help:    help.New(),
-		input:   in,
 		keys:    defaultKeys(),
 		dark:    true,
 		now:     time.Now,
@@ -144,7 +135,6 @@ func (m *Model) applyTheme() {
 	m.st = newStyles(m.dark)
 	m.editor.SetStyles(textarea.DefaultStyles(m.dark))
 	m.help.Styles = help.DefaultStyles(m.dark)
-	m.input.SetStyles(textinput.DefaultStyles(m.dark))
 }
 
 // ---------------------------------------------------------------- layout
@@ -171,7 +161,6 @@ func (m *Model) resize() {
 	m.editor.SetHeight(h)
 	m.preview.SetWidth(pvW)
 	m.preview.SetHeight(h)
-	m.input.SetWidth(max(m.width-len(m.input.Prompt)-4, 10))
 	m.help.SetWidth(m.width)
 	m.refreshPreview(true)
 }
@@ -271,11 +260,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.PasteMsg:
 		m.slash = slashMenu{}
-		if m.prompt == promptSaveAs {
-			var cmd tea.Cmd
-			m.input, cmd = m.input.Update(msg)
-			return m, cmd
-		}
 		if m.mode == modeRead {
 			return m, nil
 		}
@@ -294,10 +278,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 	if m.editor.Value() != before { // e.g. a clipboard paste arriving
 		cmds = append(cmds, m.contentChanged())
-	}
-	if m.prompt == promptSaveAs {
-		m.input, cmd = m.input.Update(msg)
-		cmds = append(cmds, cmd)
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -328,8 +308,6 @@ func (m Model) handleWheel(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch m.prompt {
-	case promptSaveAs:
-		return m.handleSaveAsKey(msg)
 	case promptConfirmQuit:
 		switch {
 		case key.Matches(msg, m.keys.Quit):
@@ -649,55 +627,14 @@ func (m *Model) continueList() bool {
 
 func (m Model) save() (tea.Model, tea.Cmd) {
 	m.slash = slashMenu{}
-	if m.doc.Path == "" {
-		m.prompt = promptSaveAs
-		m.input.SetValue("")
-		return m, m.input.Focus()
-	}
 	if err := m.doc.Save(m.editor.Value()); err != nil {
 		m.quitAfterSave = false
 		return m, m.setStatus("Save failed: "+err.Error(), true)
 	}
-	m.reopenIfMoved()
 	if m.quitAfterSave {
 		return m, tea.Quit
 	}
 	return m, m.setStatus("Saved "+m.doc.Path, false)
-}
-
-func (m Model) handleSaveAsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
-		m.prompt = promptNone
-		m.quitAfterSave = false
-		m.input.Blur()
-		return m, nil
-	case "enter":
-		p := strings.TrimSpace(m.input.Value())
-		if p == "" {
-			return m, nil
-		}
-		if strings.HasPrefix(p, "~/") {
-			if home, err := os.UserHomeDir(); err == nil {
-				p = filepath.Join(home, p[2:])
-			}
-		}
-		if filepath.Ext(p) == "" {
-			p += ".md"
-		}
-		if _, err := os.Stat(p); err == nil {
-			m.prompt = promptNone
-			m.input.Blur()
-			return m, m.setStatus(p+" already exists; not overwriting", true)
-		}
-		m.prompt = promptNone
-		m.input.Blur()
-		m.doc.Path = p
-		return m.save()
-	}
-	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-	return m, cmd
 }
 
 // ---------------------------------------------------------------- view
@@ -747,7 +684,7 @@ func (m Model) View() tea.View {
 	// Components have minimum sizes; never draw past the window.
 	v.Content = lipgloss.NewStyle().MaxWidth(m.width).MaxHeight(m.height).Render(content)
 	if c := m.editor.Cursor(); c != nil && m.mode != modeRead && !m.showHelp &&
-		m.cp.signIn == nil && m.prompt != promptSaveAs {
+		m.cp.signIn == nil {
 		c.Y++ // below the title bar
 		v.Cursor = c
 	}
@@ -798,10 +735,8 @@ func (m Model) titleBar() string {
 		left += m.st.dirty.Render("● ")
 	}
 	right := ""
-	if m.doc.Path != "" {
-		if dir := filepath.Dir(m.doc.Path); dir != "." {
-			right = m.st.status.Render(dir)
-		}
+	if dir := filepath.Dir(m.doc.Path); dir != "." {
+		right = m.st.status.Render(dir)
 	}
 	return m.fill(left, right)
 }
@@ -809,8 +744,6 @@ func (m Model) titleBar() string {
 func (m Model) statusBar() string {
 	hint := m.st.hint.Render("cmd+g help")
 	switch m.prompt {
-	case promptSaveAs:
-		return m.fill(m.st.bar.Render(" ")+m.input.View(), m.st.hint.Render("enter save · esc cancel"))
 	case promptConfirmQuit:
 		return m.fill(m.st.statusErr.Render("Unsaved changes!"),
 			m.st.hint.Render("cmd+s save & quit · cmd+q discard · any key cancel"))

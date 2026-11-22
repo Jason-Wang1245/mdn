@@ -50,12 +50,37 @@ func TestSaveRoundTripKeepsMode(t *testing.T) {
 	}
 }
 
-func TestUntitledSaveFails(t *testing.T) {
-	d, _, _ := Load("")
-	if d.Name() != "untitled.md" {
-		t.Fatal(d.Name())
-	}
-	if err := d.Save("x"); err == nil {
+func TestEmptyPathFails(t *testing.T) {
+	if _, _, err := Load(""); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestSaveCreatesParentDirs(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "a", "b", "notes.md")
+	d, _, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Save("hi"); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != "hi" {
+		t.Fatalf("got %q", b)
+	}
+}
+
+func TestDefaultPath(t *testing.T) {
+	t.Setenv(EnvFile, "/x/y.md")
+	if p, _ := DefaultPath(); p != "/x/y.md" {
+		t.Fatal(p)
+	}
+	t.Setenv(EnvFile, "")
+	p, err := DefaultPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(p) != "notes.md" || filepath.Base(filepath.Dir(p)) != "mdn" {
+		t.Fatal(p)
 	}
 }

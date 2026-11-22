@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"mdn/internal/copilot"
+	"mdn/internal/doc"
 	"mdn/internal/ui"
 )
 
@@ -29,8 +30,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, `usage: mdn [flags] [file.md]
        mdn --login | --logout
 
+With no file, mdn edits its global notes file (override with $%s).
+
 Flags:
-`)
+`, doc.EnvFile)
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -68,7 +71,13 @@ Flags:
 	if !*noCopilot {
 		opts.StartCopilot = start
 	}
-	m, err := ui.New(flag.Arg(0), opts)
+	path := flag.Arg(0)
+	if path == "" {
+		if path, err = doc.DefaultPath(); err != nil {
+			fatal(err)
+		}
+	}
+	m, err := ui.New(path, opts)
 	if err != nil {
 		fatal(err)
 	}

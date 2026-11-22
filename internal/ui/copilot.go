@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -71,15 +70,9 @@ type (
 
 func (m Model) copilotEnabled() bool { return m.opts.StartCopilot != nil }
 
-// docURI is the URI reported for the buffer; untitled buffers get a
-// placeholder in the working directory.
+// docURI is the URI reported for the buffer.
 func (m Model) docURI() string {
-	p := m.doc.Path
-	if p == "" {
-		cwd, _ := os.Getwd()
-		p = filepath.Join(cwd, "untitled.md")
-	}
-	return copilot.FileURI(p)
+	return copilot.FileURI(m.doc.Path)
 }
 
 // startCopilot launches the language server in the background.
@@ -88,10 +81,7 @@ func (m Model) startCopilot() tea.Cmd {
 		return nil
 	}
 	start, send, logger := m.opts.StartCopilot, m.opts.Send, m.opts.Logger
-	root := "."
-	if m.doc.Path != "" {
-		root = filepath.Dir(m.doc.Path)
-	}
+	root := filepath.Dir(m.doc.Path)
 	if abs, err := filepath.Abs(root); err == nil {
 		root = abs
 	}
@@ -205,23 +195,6 @@ func (m *Model) syncCopilot() {
 		m.logf("didChange: %v", err)
 	}
 	m.cp.synced = cur
-}
-
-// reopenIfMoved re-registers the document after "save as" changes its URI.
-func (m *Model) reopenIfMoved() {
-	c := m.cp.client
-	if c == nil || m.docURI() == m.cp.uri {
-		return
-	}
-	m.clearGhosts()
-	m.cancelCompletion()
-	_ = c.DidClose(m.cp.uri)
-	m.cp.uri = m.docURI()
-	m.cp.version++
-	m.cp.synced = m.editor.Value()
-	if err := c.DidOpen(m.cp.uri, languageID, m.cp.version, m.cp.synced); err != nil {
-		m.logf("didOpen: %v", err)
-	}
 }
 
 // advanceGhost handles typing that matches the suggestion: if the edit from

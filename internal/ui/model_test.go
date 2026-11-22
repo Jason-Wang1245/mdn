@@ -147,29 +147,6 @@ func TestSaveAndDirtyAndQuitGuard(t *testing.T) {
 	}
 }
 
-func TestUntitledSaveAs(t *testing.T) {
-	m, err := New("", Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	m = send(m, tea.WindowSizeMsg{Width: 80, Height: 24})
-	m = send(m, typeText("# Draft")...)
-	m = send(m, ctrl('s'))
-	if m.prompt != promptSaveAs {
-		t.Fatal("expected save-as prompt")
-	}
-	target := filepath.Join(t.TempDir(), "draft")
-	m = send(m, tea.PasteMsg{Content: target})
-	m = send(m, tea.KeyPressMsg{Code: tea.KeyEnter})
-	b, err := os.ReadFile(target + ".md")
-	if err != nil || string(b) != "# Draft" {
-		t.Fatalf("got %q, %v", b, err)
-	}
-	if m.doc.Name() != "draft.md" {
-		t.Fatal(m.doc.Name())
-	}
-}
-
 func TestSplitPreviewUpdatesAfterDebounce(t *testing.T) {
 	m, _ := newTestModel(t, "")
 	m = send(m, ctrl('\\'))
