@@ -135,7 +135,7 @@ func TestSlashMenuState(t *testing.T) {
 		t.Fatal("deleting the slash should close the menu")
 	}
 	m = send(m, typeText("/")...)
-	m = send(m, ctrl('e'))
+	m = send(m, ctrl('r'))
 	if m.slash.active {
 		t.Fatal("read mode should close the menu")
 	}

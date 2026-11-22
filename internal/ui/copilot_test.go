@@ -210,8 +210,8 @@ func TestReadModeClearsGhost(t *testing.T) {
 	m, _ := newTestModel(t, "Hello")
 	m = toEnd(m)
 	m = suggest(m, " world")
-	m = send(m, ctrl('e'))
-	m = send(m, ctrl('e'))
+	m = send(m, ctrl('r'))
+	m = send(m, ctrl('r'))
 	if _, ok := m.ghost(); ok {
 		t.Fatal("ghost should not survive read mode")
 	}
@@ -227,7 +227,7 @@ func TestCursorPlacedBelowTitleBar(t *testing.T) {
 	if c.Y != 1 {
 		t.Fatalf("cursor row %d, want 1", c.Y)
 	}
-	m = send(m, ctrl('e'))
+	m = send(m, ctrl('r'))
 	if m.View().Cursor != nil {
 		t.Fatal("no cursor in read mode")
 	}

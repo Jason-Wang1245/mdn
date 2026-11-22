@@ -37,17 +37,24 @@ func cmd(k, desc string, extra ...string) key.Binding {
 	return key.NewBinding(key.WithKeys(keys...), key.WithHelp("cmd+"+k, desc))
 }
 
+// cmdOr is cmd with a different Ctrl fallback, for shortcuts whose Ctrl form
+// is taken by line navigation: many terminals send Home/End as Ctrl+a/Ctrl+e,
+// so those must stay line start/end.
+func cmdOr(k, ctrl, desc string) key.Binding {
+	return key.NewBinding(key.WithKeys("super+"+k, "ctrl+"+ctrl), key.WithHelp("cmd+"+k, desc))
+}
+
 func defaultKeys() keyMap {
 	return keyMap{
 		Save:       cmd("s", "save"),
-		ToggleRead: cmd("e", "edit/read"),
+		ToggleRead: cmdOr("e", "r", "edit/read"),
 		Split:      cmd("\\", "split view"),
 		Quit:       cmd("q", "quit"),
 		Help:       cmd("g", "help", "f1"),
 		Copy:       cmd("c", "copy"),
 		Cut:        cmd("x", "cut"),
 		Paste:      cmd("v", "paste"),
-		SelectAll:  cmd("a", "select all"),
+		SelectAll:  cmdOr("a", "o", "select all"),
 		Indent:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "indent")),
 		Scroll:     key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/pgdn", "scroll")),
 
@@ -83,16 +90,16 @@ func (k keyMap) CopilotHelp() [][]key.Binding {
 }
 
 // editorKeys adapts the textarea's emacs-ish defaults to standard editor
-// conventions: cmd/ctrl+a selects all, cmd/ctrl+e is ours (read mode), and cmd/ctrl+g is
-// help.
+// conventions: cmd+a (ctrl+o) selects all and cmd/ctrl+g is help. Ctrl+a and
+// Ctrl+e stay line start/end, since many terminals send those for Home/End.
 func editorKeys() textarea.KeyMap {
 	km := textarea.DefaultKeyMap()
 	// macOS-style navigation: cmd+←/→ line start/end, cmd+↑/↓ doc start/end.
-	km.LineStart = key.NewBinding(key.WithKeys("home", "super+left"))
-	km.LineEnd = key.NewBinding(key.WithKeys("end", "super+right"))
+	km.LineStart = key.NewBinding(key.WithKeys("home", "ctrl+a", "super+left"))
+	km.LineEnd = key.NewBinding(key.WithKeys("end", "ctrl+e", "super+right"))
 	km.InputBegin = key.NewBinding(key.WithKeys("ctrl+home", "super+up", "alt+<"))
 	km.InputEnd = key.NewBinding(key.WithKeys("ctrl+end", "super+down", "alt+>"))
-	km.SelectAll = key.NewBinding(key.WithKeys("super+a", "ctrl+a"))
+	km.SelectAll = key.NewBinding(key.WithKeys("super+a", "ctrl+o"))
 	km.Paste = key.NewBinding(key.WithKeys("super+v", "ctrl+v"))
 	km.CopySelection = key.NewBinding(key.WithKeys("ctrl+shift+c"))
 	return km

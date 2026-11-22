@@ -56,9 +56,9 @@ func TestModeSwitching(t *testing.T) {
 		t.Fatalf("expected raw markdown in edit mode:\n%s", plain(m))
 	}
 
-	m = send(m, ctrl('e'))
+	m = send(m, ctrl('r'))
 	if m.mode != modeRead {
-		t.Fatalf("ctrl+e: mode=%v", m.mode)
+		t.Fatalf("ctrl+r: mode=%v", m.mode)
 	}
 	out := plain(m)
 	if strings.Contains(out, "**bold**") || !strings.Contains(out, "bold") {
@@ -84,7 +84,7 @@ func TestViewFitsWindow(t *testing.T) {
 	for _, sz := range [][2]int{{80, 24}, {20, 5}, {3, 2}, {200, 60}} {
 		m, _ := newTestModel(t, "# Title\n\n- a\n- b\n\n```go\nfunc main() {}\n```\n")
 		m = send(m, tea.WindowSizeMsg{Width: sz[0], Height: sz[1]})
-		for _, md := range []tea.Msg{nil, ctrl('e'), ctrl('\\')} {
+		for _, md := range []tea.Msg{nil, ctrl('r'), ctrl('\\')} {
 			if md != nil {
 				m = send(m, md)
 			}
@@ -212,5 +212,33 @@ func TestCmdBindings(t *testing.T) {
 	}
 	if !strings.Contains(plain(m), "cmd+g help") {
 		t.Fatal("status bar should advertise cmd keys")
+	}
+}
+
+// Many terminals send Home/End as ctrl+a/ctrl+e, so both pairs must move to
+// the line start/end rather than select all or toggle read mode.
+func TestLineStartEndKeys(t *testing.T) {
+	x := tea.KeyPressMsg{Code: 'X', Text: "X"}
+	for _, c := range []struct {
+		name       string
+		start, end tea.Msg
+	}{
+		{"home/end", tea.KeyPressMsg{Code: tea.KeyHome}, tea.KeyPressMsg{Code: tea.KeyEnd}},
+		{"ctrl+a/ctrl+e", ctrl('a'), ctrl('e')},
+	} {
+		m, _ := newTestModel(t, "abc")
+		m = send(m, c.start, x, c.end, x)
+		if m.mode != modeEdit {
+			t.Fatalf("%s: mode=%v, want edit", c.name, m.mode)
+		}
+		if got := m.editor.Value(); got != "XabcX" {
+			t.Fatalf("%s: got %q, want %q", c.name, got, "XabcX")
+		}
+	}
+
+	m, _ := newTestModel(t, "abc")
+	m = send(m, ctrl('o'), x)
+	if got := m.editor.Value(); got != "X" {
+		t.Fatalf("ctrl+o then typing should replace all, got %q", got)
 	}
 }

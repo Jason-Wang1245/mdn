@@ -68,7 +68,9 @@ mdn --no-copilot    # run without Copilot
 Shortcuts are listed as `cmd+…`. Terminals that support the kitty keyboard
 protocol (Ghostty, kitty, WezTerm) pass Cmd through. In terminals that keep
 Cmd for themselves (Terminal.app, or iTerm2 by default), and on Linux and
-Windows, use `ctrl+…` instead.
+Windows, use `ctrl+…` instead. The exceptions are `cmd+e` and `cmd+a`, whose
+Ctrl forms are `ctrl+r` and `ctrl+o`: `ctrl+a` and `ctrl+e` move to the line
+start / end, because many terminals send them for `home` / `end`.
 
 ### General
 
@@ -77,7 +79,7 @@ Windows, use `ctrl+…` instead.
 | `cmd+s` | Save |
 | `cmd+q` | Quit |
 | `cmd+g` / `F1` | Toggle help |
-| `cmd+e` | Toggle edit / read view |
+| `cmd+e` / `ctrl+r` | Toggle edit / read view |
 | `cmd+\` | Toggle split view |
 | `pgup` / `pgdn` | Scroll |
 
@@ -86,9 +88,9 @@ Windows, use `ctrl+…` instead.
 | Key | Action |
 | --- | --- |
 | `cmd+c` / `cmd+x` / `cmd+v` | Copy / cut / paste |
-| `cmd+a` | Select all |
+| `cmd+a` / `ctrl+o` | Select all |
 | `tab` | Indent (or accept a Copilot suggestion) |
-| `home` / `end`, `cmd+←` / `cmd+→` | Line start / end |
+| `home` / `end`, `ctrl+a` / `ctrl+e`, `cmd+←` / `cmd+→` | Line start / end |
 | `ctrl+home` / `ctrl+end`, `cmd+↑` / `cmd+↓` | Document start / end |
 
 ### Copilot
