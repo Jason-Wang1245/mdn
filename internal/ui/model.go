@@ -77,6 +77,7 @@ type Model struct {
 	showHelp      bool
 	prompt        promptKind
 	quitAfterSave bool
+	dragging      bool // a mouse selection is in progress
 
 	status    string
 	statusErr bool
@@ -265,6 +266,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.slash = slashMenu{}
 		return m.handleWheel(msg)
 
+	case tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg:
+		return m.handleMouse(msg.(tea.MouseMsg))
+
 	case tea.PasteMsg:
 		m.slash = slashMenu{}
 		if m.prompt == promptSaveAs {
@@ -439,14 +443,11 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.clearGhosts()
 		return m, m.requestCompletion(true)
 	case key.Matches(msg, m.keys.Copy):
-		if m.editor.HasSelection() {
-			return m, m.editor.CopySelection()
-		}
-		return m, nil
+		return m, m.copySelection()
 	case key.Matches(msg, m.keys.Cut):
 		if m.editor.HasSelection() {
 			m.slash = slashMenu{}
-			cmd := m.editor.CopySelection()
+			cmd := m.copySelection()
 			m.editor.DeleteSelection()
 			return m, tea.Batch(cmd, m.contentChanged())
 		}

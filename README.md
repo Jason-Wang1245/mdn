@@ -87,6 +87,7 @@ start / end, because many terminals send them for `home` / `end`.
 
 | Key | Action |
 | --- | --- |
+| Click / drag | Place the cursor / select text (drag past the top or bottom edge to scroll) |
 | `cmd+c` / `cmd+x` / `cmd+v` | Copy / cut / paste |
 | `cmd+a` / `ctrl+o` | Select all |
 | `tab` | Indent (or accept a Copilot suggestion) |
