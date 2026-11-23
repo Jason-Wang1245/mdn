@@ -47,7 +47,7 @@ func cmdOr(k, ctrl, desc string) key.Binding {
 func defaultKeys() keyMap {
 	return keyMap{
 		Save:       cmd("s", "save"),
-		ToggleRead: cmdOr("e", "r", "edit/read"),
+		ToggleRead: cmd("r", "edit/read", "super+e"),
 		Split:      cmd("\\", "split view"),
 		Quit:       cmd("q", "quit"),
 		Help:       cmd("g", "help", "f1"),

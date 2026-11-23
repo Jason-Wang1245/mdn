@@ -81,8 +81,8 @@ created on first save.
 Shortcuts are listed as `cmd+…`. Terminals that support the kitty keyboard
 protocol (Ghostty, kitty, WezTerm) pass Cmd through. In terminals that keep
 Cmd for themselves (Terminal.app, or iTerm2 by default), and on Linux and
-Windows, use `ctrl+…` instead. The exceptions are `cmd+e` and `cmd+a`, whose
-Ctrl forms are `ctrl+r` and `ctrl+o`: `ctrl+a` and `ctrl+e` move to the line
+Windows, use `ctrl+…` instead. The exception is `cmd+a`, whose
+Ctrl form is `ctrl+o`: `ctrl+a` and `ctrl+e` move to the line
 start / end, because many terminals send them for `home` / `end`.
 
 ### General
@@ -92,7 +92,7 @@ start / end, because many terminals send them for `home` / `end`.
 | `cmd+s` | Save |
 | `cmd+q` | Quit |
 | `cmd+g` / `F1` | Toggle help |
-| `cmd+e` / `ctrl+r` | Toggle edit / read view |
+| `cmd+r` | Toggle edit / read view (`cmd+e` also works) |
 | `cmd+\` | Toggle split view |
 | `pgup` / `pgdn` | Scroll |
 
