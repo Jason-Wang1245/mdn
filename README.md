@@ -106,6 +106,12 @@ start / end, because many terminals send them for `home` / `end`.
 | `tab` | Indent (or accept a Copilot suggestion) |
 | `home` / `end`, `ctrl+a` / `ctrl+e`, `cmd+←` / `cmd+→` | Line start / end |
 | `ctrl+home` / `ctrl+end`, `cmd+↑` / `cmd+↓` | Document start / end |
+| `shift+←` / `shift+→`, `shift+↑` / `shift+↓` | Extend the selection by a character / line |
+| `shift+home` / `shift+end`, `cmd+shift+←` / `cmd+shift+→` | Select to line start / end |
+| `ctrl+shift+home` / `ctrl+shift+end`, `cmd+shift+↑` / `cmd+shift+↓` | Select to document start / end |
+
+On a Mac keyboard without Home/End keys, `fn+shift+←` / `fn+shift+→` is
+`shift+home` / `shift+end`; use it in terminals that keep Cmd for themselves.
 
 ### Copilot
 

@@ -415,6 +415,18 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if move, ok := m.selectionMove(msg); ok {
+		m.slash = slashMenu{}
+		m.selectTo(move)
+		// Moving the cursor invalidates suggestions.
+		m.clearGhosts()
+		m.cancelCompletion()
+		if m.mode == modeSplit {
+			m.syncScroll()
+		}
+		return m, nil
+	}
+
 	switch {
 	case key.Matches(msg, m.keys.Suggest):
 		m.slash = slashMenu{}

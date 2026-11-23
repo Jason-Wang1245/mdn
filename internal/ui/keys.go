@@ -16,6 +16,12 @@ type keyMap struct {
 	Paste      key.Binding
 	SelectAll  key.Binding
 	Indent     key.Binding
+
+	// Extend the selection to the line / document start and end.
+	SelectLineStart key.Binding
+	SelectLineEnd   key.Binding
+	SelectDocStart  key.Binding
+	SelectDocEnd    key.Binding
 	Scroll     key.Binding
 
 	// Copilot
@@ -58,6 +64,13 @@ func defaultKeys() keyMap {
 		Indent:     key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "indent")),
 		Scroll:     key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/pgdn", "scroll")),
 
+		// Shift plus the line/document navigation keys of editorKeys. On a
+		// Mac keyboard shift+home/end is fn+shift+←/→.
+		SelectLineStart: key.NewBinding(key.WithKeys("shift+home", "shift+super+left"), key.WithHelp("shift+home/end", "select to line start/end")),
+		SelectLineEnd:   key.NewBinding(key.WithKeys("shift+end", "shift+super+right")),
+		SelectDocStart:  key.NewBinding(key.WithKeys("ctrl+shift+home", "shift+super+up")),
+		SelectDocEnd:    key.NewBinding(key.WithKeys("ctrl+shift+end", "shift+super+down")),
+
 		Accept:         key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "accept suggestion")),
 		AcceptWord:     key.NewBinding(key.WithKeys("ctrl+right", "alt+right"), key.WithHelp("ctrl+→", "accept word")),
 		NextSuggestion: key.NewBinding(key.WithKeys("alt+]"), key.WithHelp("alt+] / alt+[", "cycle suggestions")),
@@ -76,7 +89,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Save, k.Quit, k.Help},
 		{k.ToggleRead, k.Split, k.Scroll},
-		{k.Copy, k.Cut, k.Paste, k.SelectAll},
+		{k.Copy, k.Cut, k.Paste, k.SelectAll, k.SelectLineStart},
 		{k.Indent},
 	}
 }
