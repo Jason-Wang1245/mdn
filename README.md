@@ -121,7 +121,7 @@ On a Mac keyboard without Home/End keys, `fn+shift+←` / `fn+shift+→` is
 | `ctrl+→` / `alt+→` | Accept next word |
 | `esc` | Dismiss suggestion |
 | `alt+]` / `alt+[` | Next / previous suggestion |
-| `ctrl+space` | Request a suggestion now |
+| `ctrl+/` | Request a suggestion now |
 | `cmd+l` | Sign in to Copilot |
 
 ### Slash commands

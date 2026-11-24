@@ -249,9 +249,9 @@ func TestStatusIndicator(t *testing.T) {
 		t.Fatalf("expected error indicator:\n%s", plain(m))
 	}
 	m = send(m, typeText("x")...)
-	m = send(m, kp(' ', tea.ModCtrl))
+	m = send(m, kp('/', tea.ModCtrl))
 	if !strings.Contains(plain(m), "Copilot unavailable") {
-		t.Fatalf("ctrl+space should explain why:\n%s", plain(m))
+		t.Fatalf("ctrl+/ should explain why:\n%s", plain(m))
 	}
 }
 

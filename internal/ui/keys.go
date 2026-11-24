@@ -22,7 +22,7 @@ type keyMap struct {
 	SelectLineEnd   key.Binding
 	SelectDocStart  key.Binding
 	SelectDocEnd    key.Binding
-	Scroll     key.Binding
+	Scroll          key.Binding
 
 	// Copilot
 	Accept         key.Binding
@@ -75,7 +75,7 @@ func defaultKeys() keyMap {
 		AcceptWord:     key.NewBinding(key.WithKeys("ctrl+right", "alt+right"), key.WithHelp("ctrl+→", "accept word")),
 		NextSuggestion: key.NewBinding(key.WithKeys("alt+]"), key.WithHelp("alt+] / alt+[", "cycle suggestions")),
 		PrevSuggestion: key.NewBinding(key.WithKeys("alt+[")),
-		Suggest:        key.NewBinding(key.WithKeys("ctrl+space", "ctrl+@"), key.WithHelp("ctrl+space", "suggest now")),
+		Suggest:        key.NewBinding(key.WithKeys("ctrl+/", "ctrl+_"), key.WithHelp("ctrl+/", "suggest now")), // legacy terminals send ctrl+/ as ctrl+_
 		Dismiss:        key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss suggestion")),
 		SignIn:         cmd("l", "copilot sign-in"),
 	}
